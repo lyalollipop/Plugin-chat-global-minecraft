@@ -1,0 +1,122 @@
+import org.bukkit.Bukkit;
+import org.bukkit.ChatColor;
+import org.bukkit.command.Command;
+import org.bukkit.command.CommandSender;
+import org.bukkit.entity.Player;
+import org.bukkit.plugin.java.JavaPlugin;
+
+import java.util.HashMap;
+import java.util.Map;
+
+public class CanalPlugin extends JavaPlugin {
+
+    private Map<String, String> canais = new HashMap<>(); // Nome do canal -> Prefixo do comando
+
+    @Override
+    public void onEnable() {
+        getLogger().info("CanalPlugin ativado!");
+        getCommand("criarcanal").setExecutor(this);
+        getCommand("canal").setExecutor(this);
+        getCommand("delcanal").setExecutor(this);
+    }
+
+    @Override
+    public void onDisable() {
+        getLogger().info("CanalPlugin desativado!");
+    }
+
+    @Override
+    public boolean onCommand(CommandSender sender, Command command, String label, String[] args) {
+        if (command.getName().equalsIgnoreCase("criarcanal")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(ChatColor.RED + "Este comando só pode ser usado por jogadores.");
+                return true;
+            }
+
+            Player player = (Player) sender;
+            if (!player.hasPermission("canalplugin.criar")) {
+                player.sendMessage(ChatColor.RED + "Você não tem permissão para criar canais.");
+                return true;
+            }
+
+            if (args.length != 1) {
+                player.sendMessage(ChatColor.YELLOW + "Uso correto: /criarcanal <nome>");
+                return true;
+            }
+
+            String nomeCanal = args[0].toLowerCase(); // Converter para minúsculo para evitar duplicidade
+            if (canais.containsKey(nomeCanal)) {
+                player.sendMessage(ChatColor.RED + "Já existe um canal com o nome '" + nomeCanal + "'.");
+                return true;
+            }
+
+            // Vamos usar a primeira letra do nome do canal como prefixo do comando
+            String prefixoComando = nomeCanal.substring(0, 1).toLowerCase();
+            canais.put(nomeCanal, prefixoComando);
+
+            Bukkit.broadcastMessage(ChatColor.GREEN + "O canal '" + nomeCanal + "' foi criado por " + player.getName() + ".");
+            Bukkit.broadcastMessage(ChatColor.YELLOW + "Use /" + prefixoComando + " <mensagem> para conversar neste canal.");
+            return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("canal")) {
+            if (args.length < 2) {
+                sender.sendMessage(ChatColor.YELLOW + "Uso correto: /canal <nome do canal> <mensagem>");
+                return true;
+            }
+
+            String nomeCanal = args[0].toLowerCase();
+            if (!canais.containsKey(nomeCanal)) {
+                sender.sendMessage(ChatColor.RED + "O canal '" + nomeCanal + "' não existe.");
+                return true;
+            }
+
+            String mensagem = "";
+            for (int i = 1; i < args.length; i++) {
+                mensagem += args[i] + " ";
+            }
+            mensagem = mensagem.trim();
+
+            String prefixoComando = canais.get(nomeCanal);
+            String nomeDoSender = (sender instanceof Player) ? ((Player) sender).getDisplayName() : "Console";
+
+            // Enviar a mensagem para todos os jogadores
+            for (Player onlinePlayer : Bukkit.getOnlinePlayers()) {
+                onlinePlayer.sendMessage(ChatColor.DARK_GRAY + "[" + ChatColor.AQUA + prefixoComando.toUpperCase() + ChatColor.DARK_GRAY + "] " + ChatColor.WHITE + nomeDoSender + ": " + ChatColor.GRAY + mensagem);
+            }
+            Bukkit.getConsoleSender().sendMessage(ChatColor.DARK_GRAY + "[" + ChatColor.AQUA + prefixoComando.toUpperCase() + ChatColor.DARK_GRAY + "] " + ChatColor.WHITE + nomeDoSender + ": " + ChatColor.GRAY + mensagem); // Enviar para o console também
+
+            return true;
+        }
+
+        if (command.getName().equalsIgnoreCase("delcanal")) {
+            if (!(sender instanceof Player)) {
+                sender.sendMessage(ChatColor.RED + "Este comando só pode ser usado por jogadores.");
+                return true;
+            }
+
+            Player player = (Player) sender;
+            if (!player.hasPermission("canalplugin.deletar")) {
+                player.sendMessage(ChatColor.RED + "Você não tem permissão para deletar canais.");
+                return true;
+            }
+
+            if (args.length != 1) {
+                player.sendMessage(ChatColor.YELLOW + "Uso correto: /delcanal <nome do canal>");
+                return true;
+            }
+
+            String nomeCanal = args[0].toLowerCase();
+            if (!canais.containsKey(nomeCanal)) {
+                player.sendMessage(ChatColor.RED + "O canal '" + nomeCanal + "' não existe.");
+                return true;
+            }
+
+            String prefixoRemovido = canais.remove(nomeCanal);
+            Bukkit.broadcastMessage(ChatColor.RED + "O canal '" + nomeCanal + "' foi deletado por " + player.getName() + ".");
+            return true;
+        }
+
+        return false;
+    }
+}
